@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<body bgcolor="#000000">
+
+<canvas id="eye_1" width="300" height="300" style="border:1px solid #c3c3c3; float: left; margin-right: 250px;"> </canvas>
+<canvas id="eye_2" width="300" height="300" style="border:1px solid #c3c3c3; float: left;"> </canvas>
+
+<script>
+
+init_eye("eye_1");
+init_eye("eye_2");
+
+function init_eye(canvas_id) {
+
+	var c = document.getElementById(canvas_id);
+	var ctx = c.getContext("2d");
+	ctx.fillStyle = "#ffffff";
+
+	var offset = 20;
+	var size = 50;
+
+
+	function led_on(x, y) {
+		ctx.fillRect(
+				x * (size + 2) + offset,
+				y * (size + 2) + offset,
+				size,
+				size
+				);
+	}
+
+	function led_off(x, y) {
+		ctx.clearRect(
+				x * (size + 2) + offset,
+				y * (size + 2) + offset,
+				size,
+				size
+				);
+	}
+
+	function cls() {
+		ctx.clearRect(0, 0, 300, 300);
+	}
+
+	function eye_open(speed) {
+		cls();
+
+		led_on(px, py + 2);
+		led_on(px + 1, py + 2);
+		led_on(px + 2, py + 2);
+
+		setTimeout(function() {
+			led_on(px, py + 1);
+			led_on(px + 1, py + 1);
+			led_on(px + 2, py + 1);
+
+			setTimeout(function() {
+				led_on(px, py + 0);
+				led_on(px + 1, py + 0);
+				led_on(px + 2, py + 0);
+			}, speed);
+		}, speed);
+	}
+
+	function eye_close(callback, speed) {
+		led_off(px, py + 0);
+		led_off(px + 1, py + 0);
+		led_off(px + 2, py + 0);
+
+		setTimeout(function() {
+			led_off(px, py + 1);
+			led_off(px + 1, py + 1);
+			led_off(px + 2, py + 1);
+
+			setTimeout(function() {
+				led_off(px, py + 2);
+				led_off(px + 1, py + 2);
+				led_off(px + 2, py + 2);
+
+				setTimeout(function() { callback(); }, speed);
+			}, speed);
+		}, speed);
+	}
+
+	var px = 2;
+	var py = 2;
+
+	setInterval(function() {
+		eye_close(function() {
+			px = Math.floor(Math.random() * 3);
+			py = Math.floor(Math.random() * 3);
+			eye_open(50);
+		}, 50);
+	}, 6000);
+
+	setInterval(function() {
+		if (Math.random() < 0.3) {
+			eye_close(function() { eye_open(30); }, 30);
+		}
+	}, 1000);
+
+}
+
+</script>
+
+</body>
+</html>
