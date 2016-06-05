@@ -4,95 +4,165 @@
 #include <avr/interrupt.h>
 
 #define F_CPU 8000000
-#define PWM_OUT PB0
-#define PWM_IN PB1
 
+#define BLINK_DELAY 30
 
-void uart_init()
+#define uchar unsigned char
+
+// rows +
+// cols -
+
+static uchar row_pins[4];
+static volatile uint8_t *row_ports[4];
+static uchar col_pins[4];
+static volatile uint8_t *col_ports[4];
+
+void init()
 {
-	UBRR0L = F_CPU / (2400 * 16L) - 1; // baud rate
-	UCSR0B = (1<<RXEN0) | (1<<TXEN0);
+	row_ports[0] = &PORTB; row_pins[0] = PB1; DDRB |= _BV(PB1);
+	row_ports[1] = &PORTB; row_pins[1] = PB2; DDRB |= _BV(PB2);
+	row_ports[2] = &PORTD; row_pins[2] = PD5; DDRD |= _BV(PD5);
+	row_ports[3] = &PORTB; row_pins[3] = PB7; DDRB |= _BV(PB7);
 
-	// Set frame format: 8-bit data
-	UCSR0C = (1<<UCSZ00) | (1<<UCSZ01);
+	col_ports[0] = &PORTB; col_pins[0] = PB0; DDRB |= _BV(PB0);
+	col_ports[1] = &PORTD; col_pins[1] = PD7; DDRD |= _BV(PD7);
+	col_ports[2] = &PORTD; col_pins[2] = PD6; DDRD |= _BV(PD6);
+}
+
+static uchar eye_display[4][3] = {
+	{ 0, 0, 0 },
+	{ 0, 1, 0 },
+	{ 0, 1, 0 },
+	{ 0, 1, 0 }
+};
+
+void row_on(uchar row)
+{
+	uchar r;
+	for (r = 0; r < 4; r++) {
+		*(row_ports[r]) &= ~_BV(row_pins[r]);
+	}
+	*(row_ports[row]) |= _BV(row_pins[row]);
 }
 
 
-unsigned char uart_putc(char data)
+void flush_col(uchar row)
 {
-	if (! data) { return 0; }
+	uchar c;
+	for (c = 0; c < 3; c++) {
+		*(col_ports[c]) |= _BV(col_pins[c]);
+	}
 
-	while ( ! (UCSR0A & (1<<UDRE0)) );
-	UDR0 = data;
-
-	return 1;
+	for (c = 0; c < 3; c++) {
+		if (eye_display[row][c]) {
+			*(col_ports[c]) &= ~_BV(col_pins[c]);
+		}
+		_delay_us(10);
+		*(col_ports[c]) |= _BV(col_pins[c]);
+	}
 }
 
 
-void uart_print(char *data)
+void flush_display()
 {
-	while (uart_putc(*data++));
-	uart_putc('\n');
+	uchar r;
+
+	for (r = 0; r < 4; r++) {
+		row_on(r);
+		flush_col(r);
+	}
+
 }
 
 
+void on(uchar row, uchar col) { eye_display[row][col] = 1; }
 
-char signal_arrived = 0;
-unsigned char saved_tcnt;
-char counter_string[7];
+void off(uchar row, uchar col) { eye_display[row][col] = 0; }
+
+void cls()
+{
+	off(0, 0); off(0, 1); off(0, 2);
+	off(1, 0); off(1, 1); off(1, 2);
+	off(2, 0); off(2, 1); off(2, 2);
+	off(3, 0); off(3, 1); off(3, 2);
+}
+
+
+void close_eyes()
+{
+	off(0, 0); off(0, 1); off(0, 2);
+	_delay_ms(BLINK_DELAY);
+
+	off(1, 0); off(1, 1); off(1, 2);
+	_delay_ms(BLINK_DELAY);
+
+	off(2, 0); off(2, 1); off(2, 2);
+	_delay_ms(BLINK_DELAY);
+
+	off(3, 0); off(3, 1); off(3, 2);
+	_delay_ms(BLINK_DELAY);
+}
+
+void eyes_front()
+{
+	on(3, 1);
+	_delay_ms(BLINK_DELAY);
+	on(2, 1);
+	_delay_ms(BLINK_DELAY);
+	on(1, 1);
+	_delay_ms(BLINK_DELAY);
+}
+
+static const int random_times[8] = {
+	1000,
+	200,
+	2000,
+	500,
+	2000,
+	200,
+	1000,
+	500
+};
 
 /*** MAIN ***/
 
 int __attribute__((noreturn)) main(void)
 {
-	uart_init();
-	uart_print("Start...");
-
-	DDRB |= _BV(PWM_OUT); // set to output
-	DDRB &= ~_BV(PWM_IN); // set to input
-
-	PORTB &= ~_BV(PWM_OUT); // set high
-	PORTB &= ~_BV(PWM_IN); // set high
-
-	DDRD |= _BV(PD7); PORTD &= ~_BV(PD7); // set low
+	init();
 
 	cli();
-	TCCR0B |= (1 << CS01); // prescaler
+	TCCR0B |= (1 << CS01) | (1 << CS00); // prescaler
 	TIMSK0 |= (1 << TOIE0); // trigger interrupt on overflow
 	TCNT0 = 0; // count from 0
 	sei();
 
+	DDRB |= _BV(PB6);
+	DDRC |= _BV(PC5);
+	PORTB |= _BV(PB6);
+	PORTC |= _BV(PC5);
+
+	uchar r = 0;
 
 	while (1) {
-
-		if (! signal_arrived && bit_is_set(PORTB, PWM_OUT) && bit_is_set(PINB, PWM_IN)) {
-			saved_tcnt = TCNT0;
-			signal_arrived = 1;
-
-			/*
-	utoa(saved_tcnt, counter_string, 10);
-	uart_print(counter_string);
-	*/
-
-			if (saved_tcnt > 10) {
-				PORTD |= _BV(PD7); // ON
-			} else {
-				PORTD &= ~_BV(PD7); // OFF
-			}
-
-				_delay_ms(1);
+		close_eyes();
+		eyes_front();
+		if (random_times[r] == 1000) {
+			_delay_ms(1000);
+		} else if (random_times[r] == 200) {
+			_delay_ms(200);
+		} else if (random_times[r] == 500) {
+			_delay_ms(500);
+		} else if (random_times[r] == 2000) {
+			_delay_ms(2000);
 		}
+		r++;
+		if (r > 8) r = 0;
 	}
 
 }
 
 ISR(TIMER0_OVF_vect)
 {
-
-	PORTB ^= _BV(PWM_OUT); // PWM toggle
-	asm("nop");
-	if (bit_is_set(PORTB, PWM_OUT)) {
-		signal_arrived = 0;
-	}
+	flush_display();
 }
 

@@ -1,107 +1,282 @@
 <!DOCTYPE html>
 <html>
-<body bgcolor="#000000">
+<head>
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+<style>
+.on {
+	background: url('yellow_circle.jpg');
+	background-repeat: no-repeat;
+	background-size: 50px 50px;
+}
+.off {
+	background: url('black_circle.jpg');
+	background-repeat: no-repeat;
+	background-size: 50px 50px;
+}
 
-<canvas id="eye_1" width="300" height="300" style="border:1px solid #c3c3c3; float: left; margin-right: 250px;"> </canvas>
-<canvas id="eye_2" width="300" height="300" style="border:1px solid #c3c3c3; float: left;"> </canvas>
+.gap {
+	background: #000000;
+}
+
+.brow {
+	background: #999999;
+}
+
+td {
+	width: 50px;
+	height: 50px;
+}
+
+</style>
+
 
 <script>
 
-init_eye("eye_1");
-init_eye("eye_2");
+$(function() {
 
-function init_eye(canvas_id) {
+		var is_running = false;
 
-	var c = document.getElementById(canvas_id);
-	var ctx = c.getContext("2d");
-	ctx.fillStyle = "#ffffff";
+function on(x, y) {
+	$(".eye_" + x + "_" + y).removeClass("off").addClass("on");
+}
 
-	var offset = 20;
-	var size = 50;
+function off(x, y) {
+	$(".eye_" + x + "_" + y).removeClass("on").addClass("off");
+}
 
+function mouth(a, b, c) {
+	$(".mouth").removeClass("on").addClass("off");
+	if (a) $(".mouth_a").removeClass("off").addClass("on");
+	if (b) $(".mouth_b").removeClass("off").addClass("on");
+	if (c) $(".mouth_c").removeClass("off").addClass("on");
+}
 
-	function led_on(x, y) {
-		ctx.fillRect(
-				x * (size + 2) + offset,
-				y * (size + 2) + offset,
-				size,
-				size
-				);
-	}
+function cls() {
+	off(1, 1); off(1, 2); off(1, 3); off(1, 4);
+	off(2, 1); off(2, 2); off(2, 3); off(2, 4);
+	off(3, 1); off(3, 2); off(3, 3); off(3, 4);
+}
 
-	function led_off(x, y) {
-		ctx.clearRect(
-				x * (size + 2) + offset,
-				y * (size + 2) + offset,
-				size,
-				size
-				);
-	}
-
-	function cls() {
-		ctx.clearRect(0, 0, 300, 300);
-	}
-
-	function eye_open(speed) {
-		cls();
-
-		led_on(px, py + 2);
-		led_on(px + 1, py + 2);
-		led_on(px + 2, py + 2);
-
+function close_eyes(callback) {
+	var speed = 30;
+	off(1, 1); off(2, 1); off(3, 1);
+	setTimeout(function() {
+		off(1, 2); off(2, 2); off(3, 2);
 		setTimeout(function() {
-			led_on(px, py + 1);
-			led_on(px + 1, py + 1);
-			led_on(px + 2, py + 1);
-
-			setTimeout(function() {
-				led_on(px, py + 0);
-				led_on(px + 1, py + 0);
-				led_on(px + 2, py + 0);
-			}, speed);
+			off(1, 3); off(2, 3); off(3, 3);
+				setTimeout(function() {
+					off(1, 4); off(2, 4); off(3, 4);
+					mouth(0, 1, 0);
+					setTimeout(callback, speed);
+				}, speed);
 		}, speed);
-	}
+	}, speed);
+}
 
-	function eye_close(callback, speed) {
-		led_off(px, py + 0);
-		led_off(px + 1, py + 0);
-		led_off(px + 2, py + 0);
+var eyes_smiling = function() {
+	var speed = 60;
+	on(1, 3); on(2, 3); on(3, 3);
 
-		setTimeout(function() {
-			led_off(px, py + 1);
-			led_off(px + 1, py + 1);
-			led_off(px + 2, py + 1);
+	mouth(1, 1, 1);
 
-			setTimeout(function() {
-				led_off(px, py + 2);
-				led_off(px + 1, py + 2);
-				led_off(px + 2, py + 2);
-
-				setTimeout(function() { callback(); }, speed);
-			}, speed);
-		}, speed);
-	}
-
-	var px = 2;
-	var py = 2;
-
-	setInterval(function() {
-		eye_close(function() {
-			px = Math.floor(Math.random() * 3);
-			py = Math.floor(Math.random() * 3);
-			eye_open(50);
-		}, 50);
-	}, 6000);
-
-	setInterval(function() {
-		if (Math.random() < 0.3) {
-			eye_close(function() { eye_open(30); }, 30);
-		}
+	var counter = 0;
+	var smileInt = setInterval(function() {
+					setTimeout(function() {
+						off(1, 3); off(2, 3); off(3, 3);
+						on(1, 4); on(2, 4); on(3, 4);
+						setTimeout(function() {
+							off(1, 4); off(2, 4); off(3, 4);
+							on(1, 3); on(2, 3); on(3, 3);
+							setTimeout(function() {
+								off(1, 3); off(2, 3); off(3, 3);
+								on(1, 4); on(2, 4); on(3, 4);
+								setTimeout(function() {
+									off(1, 4); off(2, 4); off(3, 4);
+									on(1, 3); on(2, 3); on(3, 3);
+									counter++;
+									if (counter > 2) {
+										clearInterval(smileInt);
+										is_running = false;
+									}
+								}, speed);
+							}, speed);
+						}, speed);
+					}, speed);
 	}, 1000);
+}
+
+var eyes_scared = function() {
+	var speed = 30;
+	on(1, 4); on(2, 4); on(3, 4);
+	setTimeout(function() {
+		on(1, 3);           on(3, 3);
+		setTimeout(function() {
+			on(1, 2); on(2, 2); on(3, 2);
+			setTimeout(function() {
+				cls();
+				on(2, 3);
+				setTimeout(function() {
+					cls();
+					on(1, 4); on(2, 4); on(3, 4);
+					on(1, 3);           on(3, 3);
+					on(1, 2); on(2, 2); on(3, 2);
+					setTimeout(function() {
+						cls();
+						on(2, 3);
+						setTimeout(function() {
+							cls();
+							on(1, 4); on(2, 4); on(3, 4);
+							on(1, 3);           on(3, 3);
+							on(1, 2); on(2, 2); on(3, 2);
+							is_running = false;
+						}, 1000);
+					}, 2000);
+				}, 1000);
+			}, 2000);
+		}, speed);
+	}, speed);
 
 }
 
+var eyes_front = function(x, y_offset) {
+	if (! x) x = 2;
+	if (! y_offset) y_offset = 0;
+	var speed = 30;
+	on(x, 4 + y_offset);
+	setTimeout(function() {
+		on(x, 3 + y_offset); 
+		setTimeout(function() {
+			on(x, 2 + y_offset); 
+		}, speed);
+	}, speed);
+	is_running = false;
+}
+
+close_eyes()
+
+var eyes_left = function() {
+	mouth(1, 1, 0);
+	eyes_front(1);
+}
+
+var eyes_right = function() {
+	mouth(0, 1, 1);
+	eyes_front(3);
+}
+
+var eyes_rtop = function() {
+	mouth(0, 1, 0);
+	eyes_front(3, -1);
+}
+
+var eyes_ltop = function() {
+	mouth(0, 1, 0);
+	eyes_front(1, -1);
+}
+
+var eyes_top = function() {
+	mouth(0, 1, 0);
+	eyes_front(2, -1);
+}
+
+
+var expressions = [
+	'eyes_front', 'eyes_scared', 'eyes_scared', 'eyes_scared', 'eyes_scared', 'eyes_front', 'eyes_front',
+	'eyes_smiling', 'eyes_smiling', 'eyes_smiling',
+	'eyes_right', 'eyes_smiling', 'eyes_smiling',
+	'eyes_rtop',
+	'eyes_ltop',
+	'eyes_top'
+];
+
+setInterval(function() {
+	if (is_running) return;
+	is_running = true;
+	close_eyes(function() {
+		var r = Math.floor(Math.random() * 13);
+		console.log(r);
+		console.log(expressions[r]);
+		eval(expressions[r] + "()");
+	});
+}, 4000);
+
+});
+
 </script>
+</head>
+
+<body bgcolor="#000000">
+<table>
+	<tr>
+		<td class="gap brow"></td>
+		<td class="gap brow"></td>
+		<td class="gap brow"></td>
+		<td class="gap brow"></td>
+		<td class="gap"></td> <td class="gap"></td> <td class="gap"></td> <td class="gap"></td> <td class="gap"></td>
+		<td class="gap brow"></td>
+		<td class="gap brow"></td>
+		<td class="gap brow"></td>
+		<td class="gap brow"></td>
+	</tr>
+	<tr>
+		<td class="gap brow"></td>
+		<td class="eye_1_1 on"></td>
+		<td class="eye_2_1 on"></td>
+		<td class="eye_3_1 on"></td>
+		<td class="gap"></td> <td class="gap"></td> <td class="gap"></td> <td class="gap"></td> <td class="gap"></td>
+		<td class="eye_1_1 on"></td>
+		<td class="eye_2_1 on"></td>
+		<td class="eye_3_1 on"></td>
+		<td class="gap brow"></td>
+	</tr>
+	<tr>
+		<td class="gap brow"></td>
+		<td class="eye_1_2 on"></td>
+		<td class="eye_2_2 on"></td>
+		<td class="eye_3_2 on"></td>
+		<td class="gap"></td> <td class="gap"></td> <td class="gap"></td> <td class="gap"></td> <td class="gap"></td>
+		<td class="eye_1_2 on"></td>
+		<td class="eye_2_2 on"></td>
+		<td class="eye_3_2 on"></td>
+		<td class="gap brow"></td>
+	</tr>
+	<tr>
+		<td class="gap"></td>
+		<td class="eye_1_3 on"></td>
+		<td class="eye_2_3 on"></td>
+		<td class="eye_3_3 on"></td>
+		<td class="gap"></td> <td class="gap"></td> <td class="gap"></td> <td class="gap"></td> <td class="gap"></td>
+		<td class="eye_1_3 on"></td>
+		<td class="eye_2_3 on"></td>
+		<td class="eye_3_3 on"></td>
+		<td class="gap"></td>
+	</tr>
+	
+	<tr>
+		<td class="gap"></td>
+		<td class="eye_1_4 on"></td>
+		<td class="eye_2_4 on"></td>
+		<td class="eye_3_4 on"></td>
+		<td class="gap"></td> <td class="gap"></td> <td class="gap"></td> <td class="gap"></td> <td class="gap"></td>
+		<td class="eye_1_4 on"></td>
+		<td class="eye_2_4 on"></td>
+		<td class="eye_3_4 on"></td>
+		<td class="gap"></td>
+	</tr>
+
+	<tr>
+		<td class="gap"></td>
+		<td class="gap"></td> <td class="gap"></td> <td class="gap"></td> <td class="gap"></td>
+
+		<td class="mouth mouth_a off"></td>
+		<td class="mouth mouth_b on" style="padding-top: 20px; background-position-y: 20px;"></td>
+		<td class="mouth mouth_c off"></td>
+
+		<td class="gap"></td> <td class="gap"></td> <td class="gap"></td> <td class="gap"></td>
+		<td class="gap"></td>
+	</tr>
+</table>
+
 
 </body>
 </html>
