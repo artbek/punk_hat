@@ -103,14 +103,22 @@ void close_eyes()
 	_delay_ms(BLINK_DELAY);
 }
 
-void eyes_front()
+void eyes_front(uchar row_start, uchar col)
 {
-	on(3, 1);
+	on(row_start + 2, col);
 	_delay_ms(BLINK_DELAY);
-	on(2, 1);
+	on(row_start + 1, col);
 	_delay_ms(BLINK_DELAY);
-	on(1, 1);
+	on(row_start, col);
 	_delay_ms(BLINK_DELAY);
+}
+
+void eyes_smiling()
+{
+}
+
+void eyes_scared()
+{
 }
 
 static const int random_times[8] = {
@@ -123,6 +131,42 @@ static const int random_times[8] = {
 	1000,
 	500
 };
+
+uchar next_face = 0;
+
+void show_next_face()
+{
+	switch (next_face) {
+		case (1): // eyes left
+			eyes_front(1, 0);
+			_delay_ms(2000);
+			break;
+		case (2): // eyes left-top
+			eyes_front(0, 0);
+			_delay_ms(2000);
+			break;
+		case (3): // eyes top
+			eyes_front(0, 1);
+			_delay_ms(2000);
+			break;
+		case (4): // eyes right-top
+			eyes_front(0, 2);
+			_delay_ms(2000);
+			break;
+		case (5): // eyes right
+			eyes_front(1, 2);
+			_delay_ms(2000);
+			break;
+		case (6): // eyes scared o.o
+			eyes_scared();
+			break;
+		case (7): // eyes right
+			eyes_smiling();
+			break;
+	}
+
+	next_face = 0;
+}
 
 /*** MAIN ***/
 
@@ -137,26 +181,34 @@ int __attribute__((noreturn)) main(void)
 	sei();
 
 	DDRB |= _BV(PB6);
-	DDRC |= _BV(PC5);
 	PORTB |= _BV(PB6);
+
+	DDRC &= ~_BV(PC5);
 	PORTC |= _BV(PC5);
 
 	uchar r = 0;
 
+	next_face = 2;
+
 	while (1) {
 		close_eyes();
-		eyes_front();
-		if (random_times[r] == 1000) {
-			_delay_ms(1000);
-		} else if (random_times[r] == 200) {
-			_delay_ms(200);
-		} else if (random_times[r] == 500) {
-			_delay_ms(500);
-		} else if (random_times[r] == 2000) {
-			_delay_ms(2000);
+		if (next_face) {
+			show_next_face();
+			next_face++;
+		} else {
+			eyes_front(1, 1);
+			if (random_times[r] == 1000) {
+				_delay_ms(1000);
+			} else if (random_times[r] == 200) {
+				_delay_ms(200);
+			} else if (random_times[r] == 500) {
+				_delay_ms(500);
+			} else if (random_times[r] == 2000) {
+				_delay_ms(2000);
+			}
+			r++;
+			if (r > 8) r = 0;
 		}
-		r++;
-		if (r > 8) r = 0;
 	}
 
 }
