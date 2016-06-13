@@ -3,14 +3,15 @@
 #include <stdlib.h>
 #include <avr/interrupt.h>
 
+#define uchar unsigned char
 #define F_CPU 8000000
 
 #define BLINK_DELAY 30
 
-#define uchar unsigned char
-
-// rows +
-// cols -
+#define INPUT_LEFT PC2
+#define INPUT_TOPLEFT PC3
+#define INPUT_TOPRIGHT PC4
+#define INPUT_RIGHT PC5
 
 static uchar row_pins[4];
 static volatile uint8_t *row_ports[4];
@@ -21,12 +22,17 @@ void init()
 {
 	row_ports[0] = &PORTB; row_pins[0] = PB1; DDRB |= _BV(PB1);
 	row_ports[1] = &PORTB; row_pins[1] = PB2; DDRB |= _BV(PB2);
-	row_ports[2] = &PORTD; row_pins[2] = PD5; DDRD |= _BV(PD5);
-	row_ports[3] = &PORTB; row_pins[3] = PB7; DDRB |= _BV(PB7);
+	row_ports[2] = &PORTB; row_pins[2] = PB3; DDRB |= _BV(PB3);
+	row_ports[3] = &PORTB; row_pins[3] = PB4; DDRB |= _BV(PB4);
 
 	col_ports[0] = &PORTB; col_pins[0] = PB0; DDRB |= _BV(PB0);
 	col_ports[1] = &PORTD; col_pins[1] = PD7; DDRD |= _BV(PD7);
 	col_ports[2] = &PORTD; col_pins[2] = PD6; DDRD |= _BV(PD6);
+
+	DDRC &= ~_BV(INPUT_LEFT); PORTC |= _BV(INPUT_LEFT);
+	DDRC &= ~_BV(INPUT_TOPLEFT); PORTC |= _BV(INPUT_TOPLEFT);
+	DDRC &= ~_BV(INPUT_TOPRIGHT); PORTC |= _BV(INPUT_TOPRIGHT);
+	DDRC &= ~_BV(INPUT_RIGHT); PORTC |= _BV(INPUT_RIGHT);
 }
 
 static uchar eye_display[4][3] = {
@@ -115,10 +121,36 @@ void eyes_front(uchar row_start, uchar col)
 
 void eyes_smiling()
 {
+	uchar c;
+	for (c = 0; c < 2; c++) {
+		cls();
+		on(2, 0); on(2, 1); on(2, 2);
+		_delay_ms(1000);
+		cls();
+		on(3, 0); on(3, 1); on(3, 2);
+		_delay_ms(60);
+		cls();
+		on(2, 0); on(2, 1); on(2, 2);
+		_delay_ms(60);
+		cls();
+		on(3, 0); on(3, 1); on(3, 2);
+		_delay_ms(60);
+	}
 }
 
 void eyes_scared()
 {
+	uchar c;
+	for (c = 0; c < 2; c++) {
+		cls();
+		on(1, 0); on(1, 1); on(1, 2);
+		on(2, 0);           on(2, 2);
+		on(3, 0); on(3, 1); on(3, 2);
+		_delay_ms(300);
+		cls();
+		on(2, 1);
+		_delay_ms(1000);
+	}
 }
 
 static const int random_times[8] = {
@@ -160,13 +192,67 @@ void show_next_face()
 		case (6): // eyes scared o.o
 			eyes_scared();
 			break;
-		case (7): // eyes right
+		case (7): // eyes smiling -.-
 			eyes_smiling();
 			break;
 	}
 
 	next_face = 0;
 }
+
+
+void process_inputs2()
+{
+	if (bit_is_clear(PINC, INPUT_LEFT)) {
+		if (bit_is_clear(PINC, INPUT_RIGHT)) {
+			next_face = 6;
+		} else if (bit_is_clear(PINC, INPUT_TOPLEFT)) {
+			next_face = 2;
+		} else {
+			next_face = 1;
+		}
+	} else if (bit_is_clear(PINC, INPUT_RIGHT)) {
+		if (bit_is_clear(PINC, INPUT_LEFT)) {
+			next_face = 6;
+		} else if (bit_is_clear(PINC, INPUT_TOPRIGHT)) {
+			next_face = 4;
+		} else {
+			next_face = 5;
+		}
+	} else if (bit_is_clear(PINC, INPUT_TOPLEFT)) {
+		if (bit_is_clear(PINC, INPUT_TOPRIGHT)) {
+			next_face = 7;
+		} else {
+			next_face = 3;
+		}
+	} else if (bit_is_clear(PINC, INPUT_TOPRIGHT)) {
+		if (bit_is_clear(PINC, INPUT_TOPLEFT)) {
+			next_face = 7;
+		} else {
+			next_face = 3;
+		}
+	}
+}
+
+void process_inputs()
+{
+	if (bit_is_clear(PINC, INPUT_LEFT) && bit_is_clear(PINC, INPUT_RIGHT)) {
+		next_face = 6;
+	} else if (bit_is_clear(PINC, INPUT_TOPLEFT) && bit_is_clear(PINC, INPUT_TOPRIGHT)) {
+		next_face = 7;
+	} else if (bit_is_clear(PINC, INPUT_LEFT) && bit_is_clear(PINC, INPUT_TOPLEFT)) {
+		next_face = 2;
+	} else if (bit_is_clear(PINC, INPUT_RIGHT) && bit_is_clear(PINC, INPUT_TOPRIGHT)) {
+		next_face = 4;
+	} else if (bit_is_clear(PINC, INPUT_LEFT)) {
+		next_face = 1;
+	} else if (bit_is_clear(PINC, INPUT_RIGHT)) {
+		next_face = 5;
+	} else if (bit_is_clear(PINC, INPUT_TOPLEFT) || bit_is_clear(PINC, INPUT_TOPRIGHT)) {
+		next_face = 3;
+	}
+}
+
 
 /*** MAIN ***/
 
@@ -180,21 +266,15 @@ int __attribute__((noreturn)) main(void)
 	TCNT0 = 0; // count from 0
 	sei();
 
-	DDRB |= _BV(PB6);
-	PORTB |= _BV(PB6);
-
-	DDRC &= ~_BV(PC5);
-	PORTC |= _BV(PC5);
+	// debug
+	// DDRB |= _BV(PB6); PORTB |= _BV(PB6);
 
 	uchar r = 0;
-
-	next_face = 2;
 
 	while (1) {
 		close_eyes();
 		if (next_face) {
 			show_next_face();
-			next_face++;
 		} else {
 			eyes_front(1, 1);
 			if (random_times[r] == 1000) {
@@ -209,9 +289,11 @@ int __attribute__((noreturn)) main(void)
 			r++;
 			if (r > 8) r = 0;
 		}
-	}
 
+		process_inputs();
+	}
 }
+
 
 ISR(TIMER0_OVF_vect)
 {
